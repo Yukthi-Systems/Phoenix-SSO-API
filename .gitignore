@@ -1,0 +1,6 @@
+# Ignore files for Rust
+target/
+temp/
+Cargo.lock
+.vscode/
+.env
