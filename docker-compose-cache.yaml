@@ -1,0 +1,23 @@
+services:
+  sso-cache:
+    image: redis:7
+    container_name: sso-cache
+
+    command: redis-server --requirepass "CatsAreAwesome"
+
+    networks:
+      - sso-network
+
+    # If you want to expose the Redis port to the host machine, uncomment the following lines.
+    # However, be cautious as this can pose security risks if not properly secured.
+    # ports:
+    #  - "127.0.0.1:6379:6379"
+
+    restart: always
+
+
+networks:
+  sso-network:
+    external: true
+
+# docker network create sso-network
