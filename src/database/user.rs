@@ -409,7 +409,6 @@ pub async fn get_mail_service_session(db_pool: &PgPool, email: &str, ip_addr: &s
                 AND mb.is_enabled
                 AND org.is_active
                 AND org.email_service_enabled
-                AND org.chat_service_enabled
             "#,
             &[&email, &ip_addr, &domain],
         )
