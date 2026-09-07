@@ -488,8 +488,6 @@ pub async fn get_file_info_from_user_id(
             SELECT
                 eid.email,
                 eid.domain_name,
-                eid.first_name,
-                eid.last_name,
 
                 o.organization_id,
                 o.organization_name,

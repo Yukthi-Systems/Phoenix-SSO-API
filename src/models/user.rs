@@ -105,8 +105,6 @@ pub struct ChatInfo {
 pub struct FileInfo {
     pub email: String,
     pub domain_name: String,
-    pub first_name: String,
-    pub last_name: Option<String>,
     pub organization_id: Uuid,
     pub organization_name: String,
 
@@ -302,8 +300,6 @@ impl From<Row> for FileInfo {
         FileInfo {
             email: row.get("email"),
             domain_name: row.get("domain_name"),
-            first_name: row.get("first_name"),
-            last_name: row.get("last_name"),
             organization_id: row.get("organization_id"),
             organization_name: row.get("organization_name"),
             quota_allocated: row.get("quota_allocated"),
