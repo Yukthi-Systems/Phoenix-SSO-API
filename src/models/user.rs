@@ -116,6 +116,21 @@ pub struct FileInfo {
 }
 
 
+#[derive(Serialize)]
+pub struct TasksCalendarInfo {
+    pub email: String,
+    pub domain_name: String,
+
+    pub first_name: String,
+    pub last_name: Option<String>,
+
+    pub organization_id: Uuid,
+    pub organization_name: String,
+
+    pub is_external_sharing_enabled: bool,
+}
+
+
 // ------- Implementations ------- //
 
 
@@ -306,6 +321,21 @@ impl From<Row> for FileInfo {
             quota_utilized: row.get("quota_utilized"),
             is_file_versioning_enabled: row.get("is_file_versioning_enabled"),
             is_sharing_enabled: row.get("is_sharing_enabled"),
+        }
+    }
+}
+
+
+impl From<Row> for TasksCalendarInfo {
+    fn from(row: Row) -> Self {
+        TasksCalendarInfo {
+            email: row.get("email"),
+            domain_name: row.get("domain_name"),
+            first_name: row.get("first_name"),
+            last_name: row.get("last_name"),
+            is_external_sharing_enabled: row.get("is_external_sharing_enabled"),
+            organization_id: row.get("organization_id"),
+            organization_name: row.get("organization_name"),
         }
     }
 }

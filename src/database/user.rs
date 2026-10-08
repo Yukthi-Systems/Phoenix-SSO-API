@@ -16,7 +16,7 @@
  */
 
 
-use crate::models::user::{ChatInfo, FileInfo, SessionUser, UserInfo};
+use crate::models::user::{ChatInfo, FileInfo, TasksCalendarInfo, SessionUser, UserInfo};
 use crate::models::mail_svc::MailServiceSession;
 use deadpool_postgres::{
     PoolError as PgError,
@@ -556,6 +556,83 @@ pub async fn update_file_service_last_active_at(db_pool: &PgPool, user_email: &s
         .execute(
             r#"
             UPDATE file_users
+            SET last_active_at = NOW()
+            WHERE email = $1
+            "#,
+            &[&user_email],
+        )
+        .await?;
+
+    Ok(())
+}
+
+
+pub async fn get_task_info_from_user_id(db_pool: &PgPool, user_email: &str) -> Result<Option<TasksCalendarInfo>, PgError> {
+    let client = db_pool.get().await?;
+
+    let row = client
+        .query_opt(
+            r#"
+            SELECT
+                eid.email,
+                eid.domain_name,
+                eid.first_name,
+                eid.last_name,
+
+                tcs.is_external_sharing_enabled,
+
+                o.organization_id,
+                o.organization_name
+
+            FROM task_cal_users AS tcu
+
+            INNER JOIN email_identities AS eid
+                ON eid.email = tcu.email
+
+            INNER JOIN domains AS d
+                ON d.domain_name = eid.domain_name
+
+            INNER JOIN organizations AS o
+                ON o.organization_id = d.managed_by
+
+            INNER JOIN task_cal_settings AS tcs
+                ON tcs.organization_id = o.organization_id
+
+            WHERE
+                tcu.email = $1
+
+                AND tcu.is_enabled = TRUE
+
+                AND eid.is_enabled = TRUE
+                AND eid.is_password_expired = FALSE
+
+                AND d.is_active = TRUE
+
+                AND o.is_active = TRUE
+                AND o.tasks_service_enabled = TRUE
+
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM organizations parent_org
+                    WHERE parent_org.organization_id::text = ANY(o.hierarchy_path)
+                      AND parent_org.is_active = FALSE
+                )
+            "#,
+            &[&user_email],
+        )
+        .await?;
+
+    Ok(row.map(TasksCalendarInfo::from))
+}
+
+
+pub async fn update_task_service_last_active_at(db_pool: &PgPool, user_email: &str) -> Result<(), PgError> {
+    let client = db_pool.get().await?;
+
+    client
+        .execute(
+            r#"
+            UPDATE task_cal_users
             SET last_active_at = NOW()
             WHERE email = $1
             "#,

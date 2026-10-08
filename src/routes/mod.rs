@@ -21,3 +21,4 @@ pub mod health;
 pub mod chat_service;
 pub mod file_service;
 pub mod mail_service;
+pub mod task_service;

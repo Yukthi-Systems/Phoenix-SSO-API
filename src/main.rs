@@ -16,7 +16,7 @@
  */
 
 
-use routes::{health, user, chat_service, mail_service, file_service};
+use routes::{health, user, chat_service, mail_service, file_service, task_service};
 use actix_web::web::scope as actix_scope;
 use actix_web::middleware::from_fn;
 use actix_web::{App, HttpServer};
@@ -69,6 +69,7 @@ async fn main() -> std::io::Result<()> {
                 .wrap(from_fn(middleware::auth::api_key_check))
                 .service(chat_service::get_user_info_from_session_token)
                 .service(file_service::get_user_info_from_session_token)
+                .service(task_service::get_user_info_from_session_token)
                 .service(mail_service::clear_mail_service_login_cache)
                 .service(user::delete_user_info)
             )
