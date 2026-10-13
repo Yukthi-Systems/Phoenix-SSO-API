@@ -23,8 +23,8 @@ use crate::database::geo_ip::check_if_geo_ip_is_allowed;
 use actix_web::{HttpResponse, delete, post, web};
 use crate::models::mail_svc::MailServiceSession;
 use crate::cache::handler::{set_redis_cache, delete_redis_cache};
+use crate::state::{AppState, API_SETTINGS};
 use crate::models::errors::ApiResponse;
-use crate::state::AppState;
 
 
 #[derive(serde::Deserialize)]
@@ -41,6 +41,14 @@ struct LoginRequest {
 #[post("/login/attempt")]
 pub async fn validate_login_attempt(state: web::Data<AppState>, body: web::Json<LoginRequest>) -> ApiResponse {
     let login_request = body.into_inner();
+
+    // Check if the IP address is in the list of internal server IPs
+    if API_SETTINGS.internal_server_ips.contains(&login_request.ip_addr) {
+        return Ok(HttpResponse::Ok().json(serde_json::json!({
+            "success": true,
+            "message": "Mail Service login attempt from internal server IP"
+        })));
+    }
 
     // Generate a cache key based on the login request
     let cache_key = format!("mail_svc_login:{}:{}", login_request.email, login_request.ip_addr);

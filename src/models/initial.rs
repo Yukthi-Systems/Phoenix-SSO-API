@@ -59,11 +59,13 @@ pub struct AppSettings {
 
 
 pub struct ApiSettings {
+    pub internal_server_ips: Vec<String>,
     pub allowed_origins: Vec<String>,
-    pub basic_api_key: String,
     pub mailbox_api_key: String,
+    pub basic_api_key: String,
     pub cookie_domain: String,
 }
+
 
 // ------- Implementations ------- //
 
@@ -214,14 +216,27 @@ impl ApiSettings {
             .filter(|items| !items.is_empty())
             .expect("ALLOWED_ORIGINS must be set as a comma-separated list of allowed origins or '*' for allowing all origins");
 
+        let internal_server_ips = env_var("INTERNAL_SERVER_IPS")
+            .ok()
+            .map(|s| {
+                s.split(',')
+                    .map(|entry| entry.trim())
+                    .filter(|entry| !entry.is_empty())
+                    .map(|entry| entry.to_string())
+                    .collect::<Vec<String>>()
+            })
+            .filter(|items| !items.is_empty())
+            .expect("INTERNAL_SERVER_IPS must be set as a comma-separated list of internal server IPs");
+
         let basic_api_key = env_var("BASIC_API_KEY").expect("BASIC_API_KEY must be set");
         let mailbox_api_key = env_var("MAILBOX_API_KEY").expect("MAILBOX_API_KEY must be set");
         let cookie_domain = env_var("COOKIE_DOMAIN").expect("COOKIE_DOMAIN must be set");
 
         ApiSettings {
+            internal_server_ips,
             allowed_origins,
-            basic_api_key,
             mailbox_api_key,
+            basic_api_key,
             cookie_domain
         }
     }
