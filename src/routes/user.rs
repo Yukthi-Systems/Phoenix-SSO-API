@@ -16,7 +16,7 @@
  */
 
 
-use crate::database::user::{get_user_by_email, create_sso_session, delete_sso_session, update_sso_session_last_auth, update_sso_session_active_status};
+use crate::database::user::{get_user_by_email, create_sso_session, delete_sso_session, update_sso_session_last_auth, update_sso_session_active_status, get_basic_user_info};
 use crate::handlers::{send_app_2fa_notification, send_sms_2fa_notification, send_email_2fa_notification};
 use crate::cache::handler::{set_redis_cache, delete_redis_cache, get_redis_cache};
 use actix_web::{delete, get, post, web, HttpResponse, HttpMessage, HttpRequest};
@@ -358,4 +358,22 @@ pub async fn delete_user_info(state: web::Data<AppState>, sso_token: web::Path<U
     delete_sso_session(&state.pg_pool, &sso_token).await?;
     
     Ok(HttpResponse::Ok().json("Session deleted successfully"))
+}
+
+
+#[get("/my-info")]
+pub async fn get_info(request: HttpRequest, state: web::Data<AppState>) -> ApiResponse {
+    // Get SessionUser from request extensions
+    let ext = request.extensions();
+    let session_user = ext.get::<SessionUser>().unwrap();
+
+    // Ensure the session is active
+    if !session_user.is_active {
+        return Err(AppError::Unauthorized("Session is inactive, please contact support".to_string()));
+    }
+
+    // Fetch user info from DB
+    let user_info = get_basic_user_info(&state.pg_pool, &session_user.email).await?;
+
+    Ok(HttpResponse::Ok().json(user_info))
 }

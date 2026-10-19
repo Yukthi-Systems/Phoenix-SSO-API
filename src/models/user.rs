@@ -83,6 +83,23 @@ pub struct UserInfo {
 
 
 #[derive(Serialize)]
+pub struct BasicUserInfo {
+    pub email: String,
+    pub domain_name: String,
+    pub first_name: String,
+    pub last_name: Option<String>,
+    pub employee_id: Option<String>,
+
+    pub primary_phone: String,
+    pub secondary_email: Option<String>,
+
+    pub is_app_2fa_enabled: bool,
+    pub is_sms_2fa_enabled: bool,
+    pub is_email_2fa_enabled: bool,
+}
+
+
+#[derive(Serialize)]
 pub struct ChatInfo {
     pub email: String,
     pub domain_name: String,
@@ -294,6 +311,24 @@ impl From<Row> for TasksCalendarInfo {
             is_external_sharing_enabled: row.get("is_external_sharing_enabled"),
             organization_id: row.get("organization_id"),
             organization_name: row.get("organization_name"),
+        }
+    }
+}
+
+
+impl From<Row> for BasicUserInfo {
+    fn from(row: Row) -> Self {
+        BasicUserInfo {
+            email: row.get("email"),
+            domain_name: row.get("domain_name"),
+            first_name: row.get("first_name"),
+            last_name: row.get("last_name"),
+            primary_phone: row.get("primary_phone"),
+            secondary_email: row.get("secondary_email"),
+            employee_id: row.get("employee_id"),
+            is_app_2fa_enabled: row.get("is_app_2fa_enabled"),
+            is_sms_2fa_enabled: row.get("is_sms_2fa_enabled"),
+            is_email_2fa_enabled: row.get("is_email_2fa_enabled"),
         }
     }
 }

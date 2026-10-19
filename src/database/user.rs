@@ -16,7 +16,7 @@
  */
 
 
-use crate::models::user::{ChatInfo, FileInfo, TasksCalendarInfo, SessionUser, UserInfo};
+use crate::models::user::{ChatInfo, FileInfo, TasksCalendarInfo, SessionUser, UserInfo, BasicUserInfo};
 use crate::models::mail_svc::MailServiceSession;
 use deadpool_postgres::{
     PoolError as PgError,
@@ -149,6 +149,27 @@ pub async fn get_user_by_email(db_pool: &PgPool, email: &str) -> Result<Option<U
         .await?;
 
     Ok(row.map(UserInfo::from))
+}
+
+
+pub async fn get_basic_user_info(db_pool: &PgPool, email: &str) -> Result<BasicUserInfo, PgError> {
+    let client = db_pool.get().await?;
+
+    let row = client
+        .query_one(
+            r#"
+            SELECT
+                email, domain_name, first_name, last_name,
+                employee_id, primary_phone, secondary_email,
+                is_app_2fa_enabled, is_sms_2fa_enabled, is_email_2fa_enabled
+            FROM email_identities
+            WHERE email = $1
+            "#,
+            &[&email],
+        )
+        .await?;
+
+    Ok(BasicUserInfo::from(row))
 }
 
 
