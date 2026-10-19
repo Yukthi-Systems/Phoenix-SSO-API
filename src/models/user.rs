@@ -245,48 +245,6 @@ impl UserInfo {
     pub fn verify_password(&self, password: &str) -> bool {
         bcrypt::verify(password, &self.password_bcrypt).unwrap_or(false)
     }
-
-    /// Get a masked version of the user's secondary email for security reasons
-    pub fn masked_secondary_email(&self) -> String {
-        let email = match &self.secondary_email {
-            Some(email) => email,
-            None => return "".to_string(),
-        };
-
-        let parts: Vec<&str> = email.split('@').collect();
-        if parts.len() == 2 {
-            let local_part = parts[0];
-            let domain_part = parts[1];
-            let masked_local = if local_part.len() > 3 {
-                format!("{}***", &local_part[..3])
-            } else {
-                format!("{}***", local_part)
-            };
-            format!("{}@{}", masked_local, domain_part)
-        } else {
-            email.clone()
-        }
-    }
-
-    /// Get a masked version of the user's primary phone number for security reasons
-    pub fn masked_primary_phone(&self) -> String {
-        // Give first 3 characters and last 4 characters of phone number, mask the middle part with asterisks
-        let phone = &self.primary_phone;
-
-        if phone.len() > 7 {
-            let start = &phone[..3];
-            let end = &phone[phone.len() - 4..];
-            format!("{}****{}", start, end)
-        } else {
-            // If phone number is too short, just mask the last 4 characters
-            let end = if phone.len() > 4 {
-                &phone[phone.len() - 4..]
-            } else {
-                phone
-            };
-            format!("****{}", end)
-        }
-    }
 }
 
 
