@@ -16,15 +16,15 @@
  */
 
 
-use crate::database::user::{get_user_by_email, create_sso_session, delete_sso_session, update_sso_session_last_auth, update_sso_session_active_status, get_basic_user_info};
+use crate::database::user::{get_user_by_email, create_sso_session, delete_sso_session, update_sso_session_last_auth, update_sso_session_active_status, get_basic_user_info, update_basic_user_info};
 use crate::handlers::{send_app_2fa_notification, send_sms_2fa_notification, send_email_2fa_notification};
 use crate::cache::handler::{set_redis_cache, delete_redis_cache, get_redis_cache};
-use actix_web::{delete, get, post, web, HttpResponse, HttpMessage, HttpRequest};
+use actix_web::{delete, get, post, put, web, HttpResponse, HttpMessage, HttpRequest};
+use crate::models::user::{SessionUser, EditUserInfo};
 use actix_web::cookie::time::{self, OffsetDateTime};
 use crate::models::errors::{ApiResponse, AppError};
 use crate::state::{AppState, API_SETTINGS};
 use actix_web::cookie::{Cookie, SameSite};
-use crate::models::user::SessionUser;
 use uuid::Uuid;
 
 
@@ -376,4 +376,23 @@ pub async fn get_info(request: HttpRequest, state: web::Data<AppState>) -> ApiRe
     let user_info = get_basic_user_info(&state.pg_pool, &session_user.email).await?;
 
     Ok(HttpResponse::Ok().json(user_info))
+}
+
+
+#[put("/my-info")]
+pub async fn update_info(request: HttpRequest, state: web::Data<AppState>, data: web::Json<EditUserInfo>) -> ApiResponse {
+    // Get SessionUser from request extensions
+    let ext = request.extensions();
+    let session_user = ext.get::<SessionUser>().unwrap();
+    let user_info = data.into_inner();
+
+    // Ensure the session is active
+    if !session_user.is_active {
+        return Err(AppError::Unauthorized("Session is inactive, please contact support".to_string()));
+    }
+
+    // Update user info in DB
+    update_basic_user_info(&state.pg_pool, &session_user.email, &user_info).await?;
+
+    Ok(HttpResponse::Ok().json("User info updated successfully"))
 }

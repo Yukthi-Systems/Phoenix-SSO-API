@@ -16,7 +16,7 @@
  */
 
 
-use crate::models::user::{ChatInfo, FileInfo, TasksCalendarInfo, SessionUser, UserInfo, BasicUserInfo};
+use crate::models::user::{ChatInfo, FileInfo, TasksCalendarInfo, SessionUser, UserInfo, BasicUserInfo, EditUserInfo};
 use crate::models::mail_svc::MailServiceSession;
 use deadpool_postgres::{
     PoolError as PgError,
@@ -658,6 +658,32 @@ pub async fn update_task_service_last_active_at(db_pool: &PgPool, user_email: &s
             WHERE email = $1
             "#,
             &[&user_email],
+        )
+        .await?;
+
+    Ok(())
+}
+
+
+pub async fn update_basic_user_info(db_pool: &PgPool, user_email: &str, user_info: &EditUserInfo) -> Result<(), PgError> {
+    let client = db_pool.get().await?;
+
+    client
+        .execute(
+            r#"
+            UPDATE email_identities
+            SET
+                first_name = $1,
+                last_name = $2,
+                secondary_email = $3
+            WHERE email = $4
+            "#,
+            &[
+                &user_info.first_name,
+                &user_info.last_name,
+                &user_info.secondary_email,
+                &user_email,
+            ],
         )
         .await?;
 

@@ -67,11 +67,8 @@ async fn main() -> std::io::Result<()> {
             .service(
                 actix_scope("/user")
                 .wrap(from_fn(middleware::auth::auth_check))
+                .service(user::update_info)
                 .service(user::get_info)
-                // .service(user::update_info)    // Update self user information
-                // .service(user::list_sessions)    // List self user sessions
-                // .service(user::revoke_session)    // Revoke a specific self user session
-                // .service(user::reset_password)    // Update self user password
             )
             .service(
                 actix_scope("/internal")

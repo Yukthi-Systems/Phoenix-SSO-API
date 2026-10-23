@@ -99,6 +99,14 @@ pub struct BasicUserInfo {
 }
 
 
+#[derive(Deserialize)]
+pub struct EditUserInfo {
+    pub first_name: String,
+    pub last_name: Option<String>,
+    pub secondary_email: Option<String>,
+}
+
+
 #[derive(Serialize)]
 pub struct ChatInfo {
     pub email: String,
