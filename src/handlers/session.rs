@@ -82,16 +82,48 @@ pub async fn fetch_mail_service_session_info(app_state: &AppState, email: &str, 
 
 
 pub async fn validate_captcha(recaptcha_token: &str) -> Result<bool, AppError> {
-    // Implement the logic to validate the reCAPTCHA token using the Google reCAPTCHA Enterprise API
-    // Return Ok(true) if the token is valid, otherwise return Ok(false)
-    // You may need to make an HTTP request to the Google reCAPTCHA API and handle the response
+    let client = HttpClient::new();
 
-    // Placeholder implementation (replace with actual validation logic)
-    if recaptcha_token.is_empty() {
-        return Ok(false);
+    let recaptcha_url = format!(
+        "https://recaptchaenterprise.googleapis.com/v1/projects/{}/assessments?key={}",
+        API_SETTINGS.google_recaptcha_project_id,
+        API_SETTINGS.google_recaptcha_api_key
+    );
+
+    let response = client.post(&recaptcha_url)
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "event": {
+                "token": recaptcha_token,
+                "siteKey": API_SETTINGS.google_recaptcha_site_key
+            }
+        }))
+        .send()
+        .await
+        .map_err(|err| AppError::Unauthorized(
+            format!("Failed to call reCAPTCHA API: {}", err)
+        ))?;
+
+    if !response.status().is_success() {
+        return Err(AppError::Unauthorized(
+            format!("reCAPTCHA API returned an error: {}", response.status())
+        ));
     }
 
-    Ok(true)
+    let response_body: serde_json::Value = response.json().await.map_err(|err| AppError::Unauthorized(
+        format!("Failed to parse reCAPTCHA API response: {}", err)
+    ))?;
+
+    // Example response from the reCAPTCHA API: {"tokenProperties": {"valid": true | false}}
+    if let Some(token_properties) = response_body.get("tokenProperties") {
+        if let Some(valid) = token_properties.get("valid").and_then(|v| v.as_bool()) {
+            // If the valid field is present, return its value
+            return Ok(valid);
+        }
+    }
+
+    // If the tokenProperties field is missing or the valid field is not present, consider the captcha as invalid
+    Ok(false)
 }
 
 
