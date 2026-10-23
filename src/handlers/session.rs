@@ -136,7 +136,7 @@ pub async fn is_password_breached(email: &str, password: &str) -> Result<bool, A
         .header("Content-Type", "application/json; charset=utf-8")
         .header("X-API-Key", API_SETTINGS.google_pld_api_key.clone())
         .json(&serde_json::json!({
-            "email": email,
+            "username": email,
             "password": password
         }))
         .send()
