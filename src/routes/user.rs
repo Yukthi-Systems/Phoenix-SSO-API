@@ -253,7 +253,8 @@ pub async fn validate_otp(request: HttpRequest, path: web::Path<(String, String)
     }
 
 
-    async fn validate_otp(otp_key: String, otp: String, state: web::Data<AppState>) -> Result<(), AppError> {
+    #[inline]
+    async fn validate_user_otp(otp_key: String, otp: String, state: web::Data<AppState>) -> Result<(), AppError> {
         // Get the OTP from Redis and compare with the provided OTP
         let stored_otp: Option<i32> = get_redis_cache(state.redis_cache.clone(), &otp_key).await?;
         if stored_otp.is_none() {
@@ -277,15 +278,15 @@ pub async fn validate_otp(request: HttpRequest, path: web::Path<(String, String)
     match otp_type.as_str() {
         "app" => {
             log::info!("Validating OTP for App 2FA for user {}", session_user.email);
-            validate_otp(otp_key, otp, state.clone()).await?;
+            validate_user_otp(otp_key, otp, state.clone()).await?;
         }
         "sms" => {
             log::info!("Validating OTP for SMS 2FA for user {}", session_user.email);
-            validate_otp(otp_key, otp, state.clone()).await?;
+            validate_user_otp(otp_key, otp, state.clone()).await?;
         }
         "email" => {
             log::info!("Validating OTP for Email 2FA for user {}", session_user.email);
-            validate_otp(otp_key, otp, state.clone()).await?;
+            validate_user_otp(otp_key, otp, state.clone()).await?;
         }
         "backup" => {
             log::info!("Validating OTP for Backup 2FA for user {}", session_user.email);
