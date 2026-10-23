@@ -64,6 +64,11 @@ pub struct ApiSettings {
     pub mailbox_api_key: String,
     pub basic_api_key: String,
     pub cookie_domain: String,
+    pub google_pld_api_base_url: String,
+    pub google_pld_api_key: String,
+    pub google_recaptcha_project_id: String,
+    pub google_recaptcha_api_key: String,
+    pub google_recaptcha_site_key: String,
 }
 
 
@@ -232,12 +237,24 @@ impl ApiSettings {
         let mailbox_api_key = env_var("MAILBOX_API_KEY").expect("MAILBOX_API_KEY must be set");
         let cookie_domain = env_var("COOKIE_DOMAIN").expect("COOKIE_DOMAIN must be set");
 
+        let google_pld_api_base_url = env_var("GOOGLE_PLD_API_BASE_URL").expect("GOOGLE_PLD_API_BASE_URL must be set");
+        let google_pld_api_key = env_var("GOOGLE_PLD_API_KEY").expect("GOOGLE_PLD_API_KEY must be set");
+
+        let google_recaptcha_project_id = env_var("GOOGLE_RECAPTCHA_PROJECT_ID").expect("GOOGLE_RECAPTCHA_PROJECT_ID must be set");
+        let google_recaptcha_api_key = env_var("GOOGLE_RECAPTCHA_API_KEY").expect("GOOGLE_RECAPTCHA_API_KEY must be set");
+        let google_recaptcha_site_key = env_var("GOOGLE_RECAPTCHA_SITE_KEY").expect("GOOGLE_RECAPTCHA_SITE_KEY must be set");
+
         ApiSettings {
             internal_server_ips,
             allowed_origins,
             mailbox_api_key,
             basic_api_key,
-            cookie_domain
+            cookie_domain,
+            google_pld_api_base_url,
+            google_pld_api_key,
+            google_recaptcha_project_id,
+            google_recaptcha_api_key,
+            google_recaptcha_site_key,
         }
     }
 }

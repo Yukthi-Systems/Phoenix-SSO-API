@@ -17,7 +17,7 @@
 
 
 use crate::database::user::{get_user_by_email, create_sso_session, delete_sso_session, update_sso_session_last_auth, update_sso_session_active_status, get_basic_user_info, update_basic_user_info};
-use crate::handlers::{send_app_2fa_notification, send_sms_2fa_notification, send_email_2fa_notification};
+use crate::handlers::{send_app_2fa_notification, send_sms_2fa_notification, send_email_2fa_notification, session};
 use crate::cache::handler::{set_redis_cache, delete_redis_cache, get_redis_cache};
 use actix_web::{delete, get, post, put, web, HttpResponse, HttpMessage, HttpRequest};
 use crate::models::user::{SessionUser, EditUserInfo};
@@ -33,11 +33,17 @@ struct LoginRequest {
     user_email: String,
     password: String,
     device_details: serde_json::Value,
+    recaptcha_token: String,
 }
 
 
 #[post("/login")]
 pub async fn login(login_request: web::Json<LoginRequest>, state: web::Data<AppState>) -> ApiResponse {
+    // Validate reCAPTCHA token
+    if !session::validate_captcha(&login_request.recaptcha_token).await? {
+        return Err(AppError::Unauthorized("Captcha validation failed".to_string()));
+    }
+
     // Fetch user from DB based on email (Check if the Org is active or not and also check if the user is active or not)
     let user = get_user_by_email(&state.pg_pool, &login_request.user_email).await?;
     if user.is_none() {
@@ -48,6 +54,11 @@ pub async fn login(login_request: web::Json<LoginRequest>, state: web::Data<AppS
     // Verify password
     if !user.verify_password(&login_request.password) {
         return Err(AppError::Unauthorized("Invalid password, please try again".to_string()));
+    }
+
+    // Check if the given password has been breached using the Google reCaptcha Enterprise API (Password Leak Detection - PLD)
+    if session::is_password_breached(&login_request.user_email, &login_request.password).await? {
+        return Err(AppError::Unauthorized("The provided password has been breached, please update your password before proceeding".to_string()));
     }
 
     // Create session and store in Redis with a TTL

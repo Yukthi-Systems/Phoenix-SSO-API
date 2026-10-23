@@ -19,9 +19,10 @@
 use crate::database::user::{get_sso_session, get_mail_service_session};
 use crate::cache::handler::{get_redis_cache, set_redis_cache};
 use crate::models::mail_svc::MailServiceSession;
+use crate::state::{AppState, API_SETTINGS};
 use crate::models::user::SessionUser;
 use crate::models::errors::AppError;
-use crate::state::AppState;
+use reqwest::Client as HttpClient;
 
 
 /// Fetches user session info based on the provided SSO token.
@@ -77,4 +78,64 @@ pub async fn fetch_mail_service_session_info(app_state: &AppState, email: &str, 
     }
 
     Ok(None)
+}
+
+
+pub async fn validate_captcha(recaptcha_token: &str) -> Result<bool, AppError> {
+    // Implement the logic to validate the reCAPTCHA token using the Google reCAPTCHA Enterprise API
+    // Return Ok(true) if the token is valid, otherwise return Ok(false)
+    // You may need to make an HTTP request to the Google reCAPTCHA API and handle the response
+
+    // Placeholder implementation (replace with actual validation logic)
+    if recaptcha_token.is_empty() {
+        return Ok(false);
+    }
+
+    Ok(true)
+}
+
+
+pub async fn is_password_breached(email: &str, password: &str) -> Result<bool, AppError> {
+    let client = HttpClient::new();
+
+    let pld_url = format!("{}/createAssessment", API_SETTINGS.google_pld_api_base_url);
+
+    let response = client.post(&pld_url)
+        .header("Content-Type", "application/json; charset=utf-8")
+        .header("X-API-Key", API_SETTINGS.google_pld_api_key.clone())
+        .json(&serde_json::json!({
+            "email": email,
+            "password": password
+        }))
+        .send()
+        .await
+        .map_err(|err| AppError::Unauthorized(
+            format!("Failed to call Password Leak Detection API: {}", err)
+        ))?;
+
+    if !response.status().is_success() {
+        return Err(AppError::Unauthorized(
+            format!("Password Leak Detection API returned an error: {}", response.status())
+        ));
+    }
+
+    let response_body: serde_json::Value = response.json().await.map_err(|err| AppError::Unauthorized(
+        format!("Failed to parse Password Leak Detection API response: {}", err)
+    ))?;
+
+    // Example response from the Password Leak Detection API: {"leakedStatus": "LEAKED | NO_STATUS"}
+    if let Some(leaked_status) = response_body.get("leakedStatus").and_then(|v| v.as_str()) {
+        // If the leakedStatus is "LEAKED", the password has been leaked
+        if leaked_status == "LEAKED" {
+            return Ok(true);
+        }
+
+        // Only "NO_STATUS" indicates that the password has not been leaked
+        if leaked_status == "NO_STATUS" {
+            return Ok(false);
+        }
+    }
+
+    // If the leakedStatus is not "LEAKED" or "NO_STATUS", consider it as potentially leaked
+    Ok(true)
 }
