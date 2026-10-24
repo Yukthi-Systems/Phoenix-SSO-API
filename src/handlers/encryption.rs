@@ -25,15 +25,13 @@ use base64::{
     engine::general_purpose,
     Engine as _,
 };
+use crate::state::API_SETTINGS;
 
 
-// A fixed 32-byte key for AES-256 encryption
-const SECRET_KEY: &[u8; 32] = b"T9H5cEIwcbVk97SXFKTvNBJ33zfXcPni";
 
-
-/// Creates a new AES-256-GCM cipher instance using the fixed secret key.
+/// Creates a new AES-256-GCM cipher instance using the AES encryption key from API settings.
 fn cipher() -> Aes256Gcm {
-    Aes256Gcm::new_from_slice(SECRET_KEY)
+    Aes256Gcm::new_from_slice(API_SETTINGS.aes_encryption_key.as_bytes())
         .expect("invalid key")
 }
 
