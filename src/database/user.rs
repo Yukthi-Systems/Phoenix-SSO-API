@@ -689,3 +689,21 @@ pub async fn update_basic_user_info(db_pool: &PgPool, user_email: &str, user_inf
 
     Ok(())
 }
+
+
+pub async fn replace_new_encrypted_password(db_pool: &PgPool, user_email: &str, new_encrypted_password: String) -> Result<(), PgError> {
+    let client = db_pool.get().await?;
+
+    client
+        .execute(
+            r#"
+            UPDATE sso_sessions
+            SET encrypted_password = $1
+            WHERE email = $2
+            "#,
+            &[&new_encrypted_password, &user_email],
+        )
+        .await?;
+
+    Ok(())
+}

@@ -16,7 +16,7 @@
  */
 
 
-use crate::database::user::{create_mail_service_session, get_user_by_email};
+use crate::database::user::{create_mail_service_session, get_user_by_email, replace_new_encrypted_password};
 use crate::handlers::send_login_attempt_notification;
 use crate::handlers::session::fetch_mail_service_session_info;
 use crate::database::geo_ip::check_if_geo_ip_is_allowed;
@@ -25,6 +25,7 @@ use crate::models::mail_svc::MailServiceSession;
 use crate::cache::handler::{set_redis_cache, delete_redis_cache};
 use crate::state::{AppState, API_SETTINGS};
 use crate::models::errors::ApiResponse;
+use crate::handlers::encryption;
 
 
 #[derive(serde::Deserialize)]
@@ -32,6 +33,13 @@ struct LoginRequest {
     email: String,
     ip_addr: String,
     domain: String,
+}
+
+
+#[derive(serde::Deserialize)]
+struct PasswordChangedRequest {
+    email: String,
+    new_raw_password: String,
 }
 
 
@@ -252,4 +260,22 @@ pub async fn clear_mail_service_login_cache(state: web::Data<AppState>, body: we
     delete_redis_cache(state.redis_cache.clone(), &cache_key).await?;
 
     Ok(HttpResponse::Ok().json("Mail Service login cache cleared successfully"))
+}
+
+
+#[post("/password/reset")]
+pub async fn passwd_changed(state: web::Data<AppState>, body: web::Json<PasswordChangedRequest>) -> ApiResponse {
+    let passwd_request = body.into_inner();
+
+    // Encrypt the new password using the AES encryption key
+    let encrypted_password = encryption::encrypt(&passwd_request.new_raw_password);
+
+    // Replace all the occurrences of the raw password with the new encrypted password in the database
+    replace_new_encrypted_password(
+        &state.pg_pool,
+        &passwd_request.email,
+        encrypted_password
+    ).await?;
+
+    Ok(HttpResponse::Ok().json("SSO password reset successfully"))
 }
