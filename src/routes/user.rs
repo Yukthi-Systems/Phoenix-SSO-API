@@ -28,6 +28,9 @@ use actix_web::cookie::{Cookie, SameSite};
 use uuid::Uuid;
 
 
+const COOKIE_EXPIRATION_DURATION: time::Duration = time::Duration::days(28);
+
+
 #[derive(serde::Deserialize)]
 struct LoginRequest {
     user_email: String,
@@ -65,7 +68,7 @@ pub async fn login(login_request: web::Json<LoginRequest>, state: web::Data<AppS
     let is_2fa_enabled = user.is_app_2fa_enabled || user.is_sms_2fa_enabled || user.is_email_2fa_enabled;
     let session = SessionUser::create(&user, &login_request.password, &login_request.device_details, !is_2fa_enabled);
     let session_key = format!("session:{}", session.session_id);
-    let exp_time = OffsetDateTime::now_utc() + time::Duration::days(28);
+    let exp_time = OffsetDateTime::now_utc() + COOKIE_EXPIRATION_DURATION;
     let session_id = session.session_id.to_string();
 
     // If 2FA is enabled, we need to handle OTP verification before creating the session
@@ -139,6 +142,42 @@ pub async fn login(login_request: web::Json<LoginRequest>, state: web::Data<AppS
             "is_email_2fa_enabled": user.is_email_2fa_enabled,
             "organization_id": user.organization_id,
             "organization_name": user.organization_name
+        })))
+}
+
+
+#[post("/refresh")]
+pub async fn refresh_session(request: HttpRequest, state: web::Data<AppState>) -> ApiResponse {
+    // Get SessionUser from request extensions
+    let ext = request.extensions();
+    let session_user = ext.get::<SessionUser>().unwrap();
+
+    // Check if the session is active
+    if !session_user.is_active {
+        return Err(AppError::Unauthorized("Session is inactive, please contact support".to_string()));
+    }
+
+    // Update the last active time
+    update_sso_session_last_auth(&state.pg_pool, &session_user.session_id).await?;
+
+    // Re-Set Cookies because cookie expiration might need to be updated
+    let exp_time = OffsetDateTime::now_utc() + COOKIE_EXPIRATION_DURATION;
+
+    Ok(HttpResponse::Ok()
+        .insert_header(("Cache-Control", "no-cache"))
+        .cookie(
+            Cookie::build("SSO-Session-ID", session_user.session_id.to_string())
+                .path("/")
+                .http_only(true)
+                .secure(true)
+                .same_site(SameSite::Lax)
+                .expires(exp_time)
+                .domain(&API_SETTINGS.cookie_domain)
+                .finish(),
+        )
+        .json(serde_json::json!({
+            "message": "Session refreshed successfully",
+            "expiration": exp_time.unix_timestamp()
         })))
 }
 
