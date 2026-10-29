@@ -79,7 +79,7 @@ async fn main() -> std::io::Result<()> {
                 .service(file_service::get_user_info_from_session_token)
                 .service(task_service::get_user_info_from_session_token)
                 .service(mail_service::clear_mail_service_login_cache)
-                .service(mail_service::passwd_changed)  // TODO: When ever there is a password change, call this endpoint (2 places - Mail 25 App + V3 Admin Panel API)
+                .service(mail_service::passwd_changed)
                 .service(user::delete_user_info)
             )
             .service(

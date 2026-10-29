@@ -268,6 +268,10 @@ pub async fn clear_mail_service_login_cache(state: web::Data<AppState>, body: we
 pub async fn passwd_changed(state: web::Data<AppState>, body: web::Json<PasswordChangedRequest>) -> ApiResponse {
     let passwd_request = body.into_inner();
 
+    // When ever there is a password change, call this endpoint (2 places - Mail 25 App + V3 Admin Panel API)
+    // Internally if the password is changed by the user using the password reset functionality or by an admin
+    // we need to update the encrypted password in the database for the corresponding user
+
     // Encrypt the new password using the AES encryption key
     let encrypted_password = encryption::encrypt(&passwd_request.new_raw_password);
 
