@@ -74,7 +74,7 @@ async fn main() -> std::io::Result<()> {
             .service(
                 actix_scope("/internal")
                 .wrap(from_fn(middleware::auth::api_key_check))
-                // .service(mail_service::get_user_info_from_session_token)    // Also fetch the raw password too
+                .service(mail_service::get_user_info_from_session_token)
                 .service(chat_service::get_user_info_from_session_token)
                 .service(file_service::get_user_info_from_session_token)
                 .service(task_service::get_user_info_from_session_token)

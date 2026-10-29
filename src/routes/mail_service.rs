@@ -17,15 +17,16 @@
 
 
 use crate::database::user::{create_mail_service_session, get_user_by_email, replace_new_encrypted_password};
+use crate::handlers::session::{fetch_mail_service_session_info, fetch_user_session_info};
 use crate::handlers::send_login_attempt_notification;
-use crate::handlers::session::fetch_mail_service_session_info;
 use crate::database::geo_ip::check_if_geo_ip_is_allowed;
-use actix_web::{HttpResponse, delete, post, web};
+use actix_web::{HttpResponse, delete, get, post, web};
 use crate::models::mail_svc::MailServiceSession;
 use crate::cache::handler::{set_redis_cache, delete_redis_cache};
 use crate::state::{AppState, API_SETTINGS};
 use crate::models::errors::ApiResponse;
 use crate::handlers::encryption;
+use uuid::Uuid;
 
 
 #[derive(serde::Deserialize)]
@@ -278,4 +279,35 @@ pub async fn passwd_changed(state: web::Data<AppState>, body: web::Json<Password
     ).await?;
 
     Ok(HttpResponse::Ok().json("SSO password reset successfully"))
+}
+
+
+#[get("/mailbox/user-info/{sso_token}")]
+pub async fn get_user_info_from_session_token(state: web::Data<AppState>, sso_token: web::Path<Uuid>) -> ApiResponse {
+    let sso_token = sso_token.into_inner();
+
+    // Fetch the user session info from the database using the session token
+    let session_info = fetch_user_session_info(&state, &sso_token).await?;
+    if session_info.is_none() {
+        return Ok(HttpResponse::NotFound().json("Session not found")); 
+    }
+    let session_info = session_info.unwrap();
+
+    // Check if the session is active
+    if !session_info.is_active {
+        return Ok(HttpResponse::Forbidden().json("Session is not active"));
+    }
+
+    // Decrypt the user's password from the encrypted password stored in the session info
+    let decrypted_password = encryption::decrypt(&session_info.encrypted_password);
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({
+        "organization_id": session_info.organization_id,
+        "organization_name": session_info.organization_name,
+        "email": session_info.email,
+        "domain_name": session_info.domain_name,
+        "first_name": session_info.first_name,
+        "last_name": session_info.last_name,
+        "raw_password": decrypted_password
+    })))
 }
