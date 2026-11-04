@@ -20,6 +20,7 @@ use crate::database::user::{get_user_by_email, create_sso_session, delete_sso_se
 use crate::handlers::{send_app_2fa_notification, send_sms_2fa_notification, send_email_2fa_notification, session};
 use crate::cache::handler::{set_redis_cache, delete_redis_cache, get_redis_cache};
 use actix_web::{delete, get, post, put, web, HttpResponse, HttpMessage, HttpRequest};
+use crate::database::geo_ip::check_if_geo_ip_is_allowed;
 use crate::models::user::{SessionUser, EditUserInfo};
 use actix_web::cookie::time::{self, OffsetDateTime};
 use crate::models::errors::{ApiResponse, AppError};
@@ -41,7 +42,7 @@ struct LoginRequest {
 
 
 #[post("/login")]
-pub async fn login(login_request: web::Json<LoginRequest>, state: web::Data<AppState>) -> ApiResponse {
+pub async fn login(request: HttpRequest, login_request: web::Json<LoginRequest>, state: web::Data<AppState>) -> ApiResponse {
     // Validate reCAPTCHA token
     if !session::validate_captcha(&login_request.recaptcha_token).await? {
         return Err(AppError::Unauthorized("Captcha validation failed".to_string()));
@@ -57,6 +58,34 @@ pub async fn login(login_request: web::Json<LoginRequest>, state: web::Data<AppS
     // Verify password
     if !user.verify_password(&login_request.password) {
         return Err(AppError::Unauthorized("Invalid password, please try again".to_string()));
+    }
+
+    // Check the Geo/IP restrictions for the user login (x-forwarded-for header)
+    let ip_address = request
+        .headers()
+        .get("x-real-ip")
+        .and_then(|header| header.to_str().ok())
+        .map(|s| s.to_string())
+        .or_else(|| request.peer_addr().map(|addr| addr.ip().to_string()));
+
+    // Ensure IP address is available if there are Geo/IP restrictions for the user
+    if user.restriction_policy.is_some() {
+        // If the user has a restriction policy, ensure the IP address is checked against it
+        if let Some(ip_addr) = &ip_address {
+            let location_info = check_if_geo_ip_is_allowed(
+                &state.pg_pool,
+                &ip_addr,
+                &user.restriction_policy
+            ).await?;
+            let (is_geo_ip_allowed, message) = location_info.validate_geo_ip();
+
+            // If Geo/IP is not allowed, return an unauthorized error with the message
+            if !is_geo_ip_allowed {
+                return Err(AppError::Unauthorized(message));
+            }
+        } else {
+            return Err(AppError::Unauthorized("Unable to determine IP address for Geo/IP restrictions".to_string()));
+        }
     }
 
     // Check if the given password has been breached using the Google reCaptcha Enterprise API (Password Leak Detection - PLD)
