@@ -70,6 +70,8 @@ pub async fn login(request: HttpRequest, login_request: web::Json<LoginRequest>,
 
     // Ensure IP address is available if there are Geo/IP restrictions for the user
     if user.restriction_policy.is_some() {
+        tracing::debug!("User {:?} has a restriction policy, checking IP {:?}", user.email, &ip_address);
+
         // If the user has a restriction policy, ensure the IP address is checked against it
         if let Some(ip_addr) = &ip_address {
             let location_info = check_if_geo_ip_is_allowed(
