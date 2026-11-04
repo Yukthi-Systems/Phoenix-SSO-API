@@ -29,7 +29,7 @@ use crate::handlers::encryption;
 use uuid::Uuid;
 
 
-#[derive(serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 struct LoginRequest {
     email: String,
     ip_addr: String,
@@ -110,6 +110,9 @@ pub async fn validate_login_attempt(state: web::Data<AppState>, body: web::Json<
         &login_request.ip_addr,
         &user_info.restriction_policy
     ).await?;
+
+    tracing::debug!("Mail Service location info for IP {:?}: {:?}", login_request, &location_info);
+
     let (is_geo_ip_allowed, message) = location_info.validate_geo_ip();
 
     // If the Geo or IP is not allowed, return a Forbidden response + Cache the response in Redis for future requests
