@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use tokio_postgres::row::Row;
 
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GeoIPInfo {
     pub ip_in_whitelist: bool,
     pub iso_code_in_whitelist: bool,

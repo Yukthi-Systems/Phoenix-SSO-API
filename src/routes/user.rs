@@ -79,6 +79,9 @@ pub async fn login(request: HttpRequest, login_request: web::Json<LoginRequest>,
                 &ip_addr,
                 &user.restriction_policy
             ).await?;
+
+            tracing::debug!("Location info for IP {:?}: {:?}", ip_addr, &location_info);
+
             let (is_geo_ip_allowed, message) = location_info.validate_geo_ip();
 
             // If Geo/IP is not allowed, return an unauthorized error with the message
