@@ -34,6 +34,10 @@ mod state;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Initialize logging system
+    let _log_guard = state::logging_init();
+
+    // Initialize the application state, including database and cache connections
     let app_state = state::initialize().await;
 
     // Start the Actix web server

@@ -68,7 +68,7 @@ async fn session_check(req: &ServiceRequest) -> bool {
     } else {
         // Check the session in DB as a fallback (in case of cache miss or Redis failure)
         let db_session = get_sso_session(&state.pg_pool, &session_id).await.unwrap();
-        log::info!("Session {} not found in cache, checked DB: {}", session_id, db_session.is_some());
+        tracing::info!("Session {} not found in cache, checked DB: {}", session_id, db_session.is_some());
 
         // If session exists in DB, insert SessionUser into request extensions and also set it in cache for future requests
         if let Some(db_session) = db_session {
@@ -118,7 +118,7 @@ pub async fn api_key_check<B>(req: ServiceRequest, next: Next<B>) -> Result<Serv
     let api_key = req.headers().get("x-api-key").and_then(|h| h.to_str().ok());
 
     if api_key != Some(&API_SETTINGS.basic_api_key) {
-        log::warn!("API key check failed for request {} {}", req.method(), req.path());
+        tracing::warn!("API key check failed for request {} {}", req.method(), req.path());
 
         // Short-circuit and return 401 Unauthorized
         let resp = HttpResponse::Unauthorized()
@@ -143,7 +143,7 @@ pub async fn post_login_api_key_check<B>(req: ServiceRequest, next: Next<B>) -> 
     let api_key = req.headers().get("x-api-key").and_then(|h| h.to_str().ok());
 
     if api_key != Some(&API_SETTINGS.mailbox_api_key) {
-        log::warn!("API key check failed for request {} {}", req.method(), req.path());
+        tracing::warn!("API key check failed for request {} {}", req.method(), req.path());
 
         // Short-circuit and return 401 Unauthorized
         let resp = HttpResponse::Unauthorized()

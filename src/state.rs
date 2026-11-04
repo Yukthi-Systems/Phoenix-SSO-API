@@ -18,6 +18,7 @@
 
 use crate::models::initial::{ApiSettings, AppSettings, PgSettings, RedisSettings, RmqSettings};
 use deadpool_postgres::{Manager, RecyclingMethod, Pool as PgPool};
+use tracing_appender::non_blocking::WorkerGuard;
 use redis::{Client, aio::MultiplexedConnection};
 use native_tls::{Certificate, TlsConnector};
 use deadpool::{managed::Timeouts, Runtime};
@@ -27,6 +28,13 @@ use tokio_postgres::Config;
 use std::sync::LazyLock;
 use std::time::Duration;
 use std::fs;
+use tracing_subscriber::{
+    fmt,
+    layer::SubscriberExt,
+    util::SubscriberInitExt,
+    EnvFilter,
+};
+
 
 
 pub struct AppState {
@@ -58,16 +66,16 @@ async fn warm_pool(pool: &PgPool, pg: &PgSettings) {
                 ok += 1;
             }
             Err(_) => {
-                log::warn!("Pool warm-up: failed to get a connection");
+                tracing::warn!("Pool warm-up: failed to get a connection");
             }
         }
     }
 
     // Log the warm-up results
     if ok == 0 {
-        log::warn!("Pool warm-up failed, all attempts to get a connection were unsuccessful: {warm_n}");
+        tracing::warn!("Pool warm-up failed, all attempts to get a connection were unsuccessful: {warm_n}");
     } else {
-        log::info!("Pool warm-up: {ok} conns warmed up out of {warm_n}. Success rate: {:.2}%", ok as f64 / warm_n as f64 * 100.0);
+        tracing::info!("Pool warm-up: {ok} conns warmed up out of {warm_n}. Success rate: {:.2}%", ok as f64 / warm_n as f64 * 100.0);
     }
 }
 
@@ -83,7 +91,7 @@ fn build_pg_config(settings: &PgSettings) -> Config {
 
 
 fn tls_builder_from_settings(settings: &PgSettings) -> TlsConnector {
-    log::info!("Postgres SSL settings: accept_invalid_certs={}, accept_invalid_hostnames={}, root_cert_path={:?}",
+    tracing::info!("Postgres SSL settings: accept_invalid_certs={}, accept_invalid_hostnames={}, root_cert_path={:?}",
         settings.ssl_accept_invalid_certs,
         settings.ssl_accept_invalid_hostnames,
         settings.ssl_root_cert_path
@@ -140,7 +148,7 @@ fn init_pg_pool(pg_settings: &PgSettings) -> PgPool {
         .build()
         .expect("failed to build pg pool");
 
-    log::info!("Postgres pool initialized (max_pool_size={})", pg_settings.max_pool_size);
+    tracing::info!("Postgres pool initialized (max_pool_size={})", pg_settings.max_pool_size);
     pool
 }
 
@@ -152,7 +160,7 @@ async fn init_redis(redis_settings: &RedisSettings) -> MultiplexedConnection {
 
     let pong: String = redis::cmd("PING").query_async(&mut conn).await.expect("Failed to ping Redis");
     if pong != "PONG" {
-        log::warn!("Unexpected PING response from Redis: {}", pong);
+        tracing::warn!("Unexpected PING response from Redis: {}", pong);
         panic!("Failed to connect to Redis");
     }
 
@@ -178,7 +186,7 @@ pub async fn initialize() -> webData<AppState> {
 
     if app_settings.enable_logging {
         let _ = env_logger::try_init(); // Initialize the logger to log all the logs
-        log::info!("Starting the server by initializing the application state");
+        tracing::info!("Starting the server by initializing the application state");
     }
 
     // Initialize the Postgres client
@@ -196,4 +204,25 @@ pub async fn initialize() -> webData<AppState> {
         redis_cache: redis_client,
         rmq_settings: app_settings.rmq_settings,
     })
+}
+
+
+pub fn logging_init() -> WorkerGuard {
+    let (writer, guard) = tracing_appender::non_blocking(std::io::stdout());
+
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info"));
+
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(
+            fmt::layer()
+                .with_writer(writer)
+                .with_target(true)
+                .with_thread_ids(true)
+                .with_thread_names(true),
+        )
+        .init();
+
+    guard
 }

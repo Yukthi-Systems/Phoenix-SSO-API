@@ -447,7 +447,7 @@ pub async fn create_mail_service_session(
     let client = db_pool.get().await?;
     let geo_ip_info = session_info.geo_ip_info.as_ref().unwrap();
     let geo_ip_info = serde_json::to_string(geo_ip_info).unwrap_or_else(|_| "{}".to_string());
-    log::debug!("Creating mail service session for email: {}, ip: {}, domain: {}, geo_ip_info: {}, is_active: {}, session_timeout: {} minutes", session_info.email, session_info.ip_addr, session_info.domain, geo_ip_info, session_info.is_active, session_timeout);
+    tracing::debug!("Creating mail service session for email: {}, ip: {}, domain: {}, geo_ip_info: {}, is_active: {}, session_timeout: {} minutes", session_info.email, session_info.ip_addr, session_info.domain, geo_ip_info, session_info.is_active, session_timeout);
 
     client
     // INSERT INTO mailbox_sessions (

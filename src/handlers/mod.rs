@@ -50,7 +50,7 @@ pub async fn send_login_attempt_notification(
                 }
             })
         ).await.unwrap_or_else(|err| {
-            log::error!("Failed to send login attempt notification: {}", err);
+            tracing::error!("Failed to send login attempt notification: {}", err);
         });
     }
 }
@@ -79,7 +79,7 @@ pub async fn send_app_2fa_notification(
                 }
             })
         ).await.unwrap_or_else(|err| {
-            log::error!("Failed to send app 2FA notification: {}", err);
+            tracing::error!("Failed to send app 2FA notification: {}", err);
         });
     }
 }
@@ -103,7 +103,7 @@ pub async fn send_sms_2fa_notification(
             }
         })
     ).await.unwrap_or_else(|err| {
-        log::error!("Failed to send SMS 2FA notification: {}", err);
+        tracing::error!("Failed to send SMS 2FA notification: {}", err);
     });
 }
 
@@ -130,6 +130,6 @@ pub async fn send_email_2fa_notification(
             }
         })
     ).await.unwrap_or_else(|err| {
-        log::error!("Failed to send Email 2FA notification: {}", err);
+        tracing::error!("Failed to send Email 2FA notification: {}", err);
     });
 }

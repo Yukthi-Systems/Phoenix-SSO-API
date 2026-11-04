@@ -104,7 +104,7 @@ pub async fn login(request: HttpRequest, login_request: web::Json<LoginRequest>,
     if is_2fa_enabled {
         // Create a session in Redis with a TTL of 10 minutes for OTP verification
         set_redis_cache(state.redis_cache.clone(), &session_key, &session, 10 * 60).await?;
-        log::info!("User {} has 2FA enabled, OTP verification required. Session ID: {}", user.email, session.session_id);
+        tracing::info!("User {} has 2FA enabled, OTP verification required. Session ID: {}", user.email, session.session_id);
 
         create_sso_session(&state.pg_pool, &session).await?;
 
@@ -143,7 +143,7 @@ pub async fn login(request: HttpRequest, login_request: web::Json<LoginRequest>,
     // Create a session in the DB
     create_sso_session(&state.pg_pool, &session).await?;
 
-    log::info!("User {} logged in successfully with session ID {}", user.email, session.session_id);
+    tracing::info!("User {} logged in successfully with session ID {}", user.email, session.session_id);
 
     // Set cookies, headers and return response
     Ok(HttpResponse::Ok()
@@ -274,13 +274,13 @@ pub async fn resend_otp(request: HttpRequest, otp_type: web::Path<String>, state
 
     let otp_code = rand::random_range(100000..999999); // Generate a random 6-digit OTP code (Always 6 digits)
     let otp_key = format!("otp:{}:{}", session_user.session_id, otp_type);
-    log::info!("Generated OTP code {} for user {}", otp_code, session_user.email);
+    tracing::info!("Generated OTP code {} for user {}", otp_code, session_user.email);
 
     // Make sure the otp_type is valid
     match otp_type.as_str() {
         "app" => {
             set_redis_cache(state.redis_cache.clone(), &otp_key, &otp_code, 3 * 60).await?; // Store OTP in Redis with a TTL of 3 minutes
-            log::info!("Resending OTP for App 2FA for user {}", session_user.email);
+            tracing::info!("Resending OTP for App 2FA for user {}", session_user.email);
             send_app_2fa_notification(
                 &state.rmq_settings,
                 session_user.email.clone(),
@@ -290,7 +290,7 @@ pub async fn resend_otp(request: HttpRequest, otp_type: web::Path<String>, state
         }
         "sms" => {
             set_redis_cache(state.redis_cache.clone(), &otp_key, &otp_code, 5 * 60).await?; // Store OTP in Redis with a TTL of 5 minutes
-            log::info!("Resending OTP for SMS 2FA for user {}", session_user.email);
+            tracing::info!("Resending OTP for SMS 2FA for user {}", session_user.email);
             send_sms_2fa_notification(
                 &state.rmq_settings,
                 user_info.primary_phone.clone(),
@@ -299,7 +299,7 @@ pub async fn resend_otp(request: HttpRequest, otp_type: web::Path<String>, state
         }
         "email" => {
             set_redis_cache(state.redis_cache.clone(), &otp_key, &otp_code, 7 * 60).await?; // Store OTP in Redis with a TTL of 7 minutes
-            log::info!("Resending OTP for Email 2FA for user {}", session_user.email);
+            tracing::info!("Resending OTP for Email 2FA for user {}", session_user.email);
             send_email_2fa_notification(
                 &state.rmq_settings,
                 session_user.email.clone(),
@@ -356,19 +356,19 @@ pub async fn validate_otp(request: HttpRequest, path: web::Path<(String, String)
     // Make sure the otp_type is valid
     match otp_type.as_str() {
         "app" => {
-            log::info!("Validating OTP for App 2FA for user {}", session_user.email);
+            tracing::info!("Validating OTP for App 2FA for user {}", session_user.email);
             validate_user_otp(otp_key, otp, state.clone()).await?;
         }
         "sms" => {
-            log::info!("Validating OTP for SMS 2FA for user {}", session_user.email);
+            tracing::info!("Validating OTP for SMS 2FA for user {}", session_user.email);
             validate_user_otp(otp_key, otp, state.clone()).await?;
         }
         "email" => {
-            log::info!("Validating OTP for Email 2FA for user {}", session_user.email);
+            tracing::info!("Validating OTP for Email 2FA for user {}", session_user.email);
             validate_user_otp(otp_key, otp, state.clone()).await?;
         }
         "backup" => {
-            log::info!("Validating OTP for Backup 2FA for user {}", session_user.email);
+            tracing::info!("Validating OTP for Backup 2FA for user {}", session_user.email);
             // For backup OTP, we need to make DB check to see if the provided OTP is valid and unused. If valid, mark it as used in the DB.
             return Err(AppError::NotImplemented("Backup 2FA is not implemented yet".to_string()));
         }
@@ -409,7 +409,7 @@ pub async fn logout(request: HttpRequest, state: web::Data<AppState>) -> ApiResp
     // Delete session from DB
     delete_sso_session(&state.pg_pool, &session_user.session_id).await?;
 
-    log::debug!("User {} logged out successfully and session {} deleted", session_user.email, session_user.session_id);
+    tracing::debug!("User {} logged out successfully and session {} deleted", session_user.email, session_user.session_id);
 
     // Build Cookie to delete on client side
     let mut cookie = Cookie::build("SSO-Session-ID", "")

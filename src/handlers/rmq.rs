@@ -61,11 +61,11 @@ where
         .await?;
 
     if response.status().is_success() {
-        log::info!("Notification sent successfully to RMQ");
+        tracing::info!("Notification sent successfully to RMQ");
         Ok(())
     } else {
         let error_text = response.text().await?;
-        log::error!("Failed to send notification to RMQ: {}", error_text);
+        tracing::error!("Failed to send notification to RMQ: {}", error_text);
         Err(Box::new(std::io::Error::new(
             std::io::ErrorKind::Other,
             format!("Failed to send notification to RMQ: {}", error_text),

@@ -45,7 +45,7 @@ pub async fn get_user_info_from_session_token(state: web::Data<AppState>, sso_to
     let pg_pool_clone = state.pg_pool.clone();
     tokio::spawn(async move {
         if let Err(e) = update_file_service_last_active_at(&pg_pool_clone, &email_clone).await {
-            log::error!("Failed to update file service last active at for user {}: {}", email_clone, e);
+            tracing::error!("Failed to update file service last active at for user {}: {}", email_clone, e);
         }
     });
 

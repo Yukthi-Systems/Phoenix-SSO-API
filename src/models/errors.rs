@@ -116,7 +116,7 @@ impl ResponseError for AppError {
     }
 
     fn error_response(&self) -> HttpResponse {
-        log::error!("Error occurred: {}", self);
+        tracing::error!("Error occurred: {}", self);
 
         HttpResponse::build(self.status_code())
             .json(ErrorResp { error: self.to_string() })
