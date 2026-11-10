@@ -143,6 +143,7 @@ pub struct FileInfo {
 
 #[derive(Serialize)]
 pub struct TasksCalendarInfo {
+    pub identity_id: Uuid,
     pub email: String,
     pub domain_name: String,
 
@@ -311,8 +312,13 @@ impl From<Row> for FileInfo {
 
 impl From<Row> for TasksCalendarInfo {
     fn from(row: Row) -> Self {
+        // TODO: Fake Build ID using email for now
+        let email = row.get::<_, String>("email");
+        let identity_id = Uuid::new_v5(&Uuid::NAMESPACE_OID, email.as_bytes());
+
         TasksCalendarInfo {
-            email: row.get("email"),
+            identity_id,
+            email,
             domain_name: row.get("domain_name"),
             first_name: row.get("first_name"),
             last_name: row.get("last_name"),
