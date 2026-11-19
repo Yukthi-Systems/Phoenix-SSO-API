@@ -16,7 +16,7 @@
  */
 
 
-use crate::database::user::{create_mail_service_session, get_user_by_email, replace_new_encrypted_password};
+use crate::database::user::{create_mail_service_session, get_user_by_email, replace_new_encrypted_password, get_mailbox_info_from_user_id};
 use crate::handlers::session::{fetch_mail_service_session_info, fetch_user_session_info};
 use crate::handlers::send_login_attempt_notification;
 use crate::database::geo_ip::check_if_geo_ip_is_allowed;
@@ -308,13 +308,15 @@ pub async fn get_user_info_from_session_token(state: web::Data<AppState>, sso_to
     // Decrypt the user's password from the encrypted password stored in the session info
     let decrypted_password = encryption::decrypt(&session_info.encrypted_password);
 
+    // Return the decrypted password along with the user info in the response
+    let mailbox_info = get_mailbox_info_from_user_id(&state.pg_pool, &session_info.email).await?;
+    if mailbox_info.is_none() {
+        return Ok(HttpResponse::NotFound().json("Mailbox info not found"));
+    }
+    let mailbox_info = mailbox_info.unwrap();
+
     Ok(HttpResponse::Ok().json(serde_json::json!({
-        "organization_id": session_info.organization_id,
-        "organization_name": session_info.organization_name,
-        "email": session_info.email,
-        "domain_name": session_info.domain_name,
-        "first_name": session_info.first_name,
-        "last_name": session_info.last_name,
-        "raw_password": decrypted_password
+        "raw_password": decrypted_password,
+        "mailbox_info": mailbox_info
     })))
 }

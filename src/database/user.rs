@@ -16,7 +16,7 @@
  */
 
 
-use crate::models::user::{ChatInfo, FileInfo, TasksCalendarInfo, SessionUser, UserInfo, BasicUserInfo, EditUserInfo};
+use crate::models::user::{ChatInfo, FileInfo, TasksCalendarInfo, SessionUser, UserInfo, BasicUserInfo, EditUserInfo, MailBoxInfo};
 use crate::models::mail_svc::MailServiceSession;
 use deadpool_postgres::{
     PoolError as PgError,
@@ -706,4 +706,63 @@ pub async fn replace_new_encrypted_password(db_pool: &PgPool, user_email: &str, 
         .await?;
 
     Ok(())
+}
+
+
+pub async fn get_mailbox_info_from_user_id(db_pool: &PgPool, user_email: &str) -> Result<Option<MailBoxInfo>, PgError> {
+    let client = db_pool.get().await?;
+
+    let row = client
+        .query_opt(
+            r#"
+            SELECT
+                eid.email,
+                eid.domain_name,
+                eid.first_name,
+                eid.last_name,
+
+                o.organization_id,
+                o.organization_name,
+
+                s.host_name AS server_host_name
+
+            FROM mailboxes AS mb
+
+            INNER JOIN email_identities AS eid
+                ON eid.email = mb.email
+
+            INNER JOIN domains AS d
+                ON d.domain_name = eid.domain_name
+
+            INNER JOIN organizations AS o
+                ON o.organization_id = d.managed_by
+
+            INNER JOIN servers AS s
+                ON s.server_id = mb.server_id
+
+            WHERE
+                mb.email = $1
+
+                AND mb.is_enabled = TRUE
+
+                AND eid.is_enabled = TRUE
+                AND eid.is_password_expired = FALSE
+
+                AND d.is_active = TRUE
+
+                AND o.is_active = TRUE
+                AND o.tasks_service_enabled = TRUE
+
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM organizations parent_org
+                    WHERE parent_org.organization_id::text = ANY(o.hierarchy_path)
+                        AND parent_org.is_active = FALSE
+                )
+            "#,
+            &[&user_email],
+        )
+        .await?;
+
+    Ok(row.map(MailBoxInfo::from))
 }
