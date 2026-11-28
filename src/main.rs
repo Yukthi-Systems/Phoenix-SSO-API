@@ -82,6 +82,7 @@ async fn main() -> std::io::Result<()> {
                 .service(chat_service::get_user_info_from_session_token)
                 .service(file_service::get_user_info_from_session_token)
                 .service(task_service::get_user_info_from_session_token)
+                .service(file_service::get_user_info_from_app_password)
                 .service(mail_service::clear_mail_service_login_cache)
                 .service(mail_service::passwd_changed)
                 .service(user::delete_user_info)

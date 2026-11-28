@@ -51,7 +51,7 @@ pub async fn login(request: HttpRequest, login_request: web::Json<LoginRequest>,
     // Fetch user from DB based on email (Check if the Org is active or not and also check if the user is active or not)
     let user = get_user_by_email(&state.pg_pool, &login_request.user_email).await?;
     if user.is_none() {
-        return Err(AppError::Unauthorized("User does not exist or is inactive, please check your email or contact support".to_string())); 
+        return Err(AppError::Unauthorized("User does not exist or is inactive, please check your email or contact support".to_string()));
     }
     let user = user.unwrap();
 
@@ -69,6 +69,7 @@ pub async fn login(request: HttpRequest, login_request: web::Json<LoginRequest>,
         .or_else(|| request.peer_addr().map(|addr| addr.ip().to_string()));
 
     // Ensure IP address is available if there are Geo/IP restrictions for the user
+    // TODO: Put this in a function, and use this in the get details from app_password endpoints too
     if user.restriction_policy.is_some() {
         tracing::debug!("User {:?} has a restriction policy, checking IP {:?}", user.email, &ip_address);
 
